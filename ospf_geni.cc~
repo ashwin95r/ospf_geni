@@ -25,13 +25,13 @@
 #include <sys/time.h>
 #include <string>
 #include <sstream>
+#include <mutex>
 #include <vector>
 
 
 using namespace std;
 struct timeval cur_time;
 
-double start_time;
 int id, hi = 1, lsai = 5, spfi = 20, c, a_arg, b_arg, c_arg, d_arg ;
 string infile, outfile;
 int n_routers, n_edges;
@@ -39,34 +39,35 @@ struct sockaddr_in server_addr;
 ifstream inp;
 ofstream oup;
 
+mutex mtx1;
+mutex mtx2;
+
 class Router{
 	
 	public:
-		int id, cur_lsa;
+		int id, cur_lsa = 1000;
 		map<int, pair<int, int> > neigh;
 		int udp_soc, sock;
 		struct sockaddr_in server_addr, client_addr;
 	    struct hostent *host;
 	    unordered_map<int, int> latest_seq;
 	    map<int, map<int, int> > adj_list;
-   		map<int, int> time_mon;
-   		
+	    map<int, int> time_mon;
+   	
 		Router()
 		{
 			id = 0;
-			cur_lsa = 1000;
 		}
 		Router(int id_this)
 		{
-			cur_lsa = 1000;
 			id = id_this;
-			udp_soc = 20058;
+			udp_soc = 20000 + id;
 		}	
 			
 		void setup_socket()
 		{
-			host = (struct hostent *) gethostbyname(("node-"+to_string(id)).c_str());
-			cout << ("node-"+to_string(id)).c_str() << endl;
+			host = (struct hostent *) gethostbyname("localhost");
+
 			if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 				perror("Socket");
 				exit(1);
@@ -85,7 +86,7 @@ class Router{
 		}	
 };
 
-void set_receiver(int port, string ip = "localhost")
+void set_receiver(int port, string ip)
 {
 	struct hostent *host ;
 	host = (struct hostent *) gethostbyname(ip.c_str());
@@ -155,7 +156,7 @@ void *send_lsa(void *useless)
 
        	for(map<int,pair<int, int> >::iterator i = router_map.neigh.begin(); i != router_map.neigh.end(); i++)
 		{	
-			set_receiver(20058, "node-" +  to_string(i->first));
+			set_receiver(20058, "node-" + to_string(i->first));
 			sendto(router_map.sock, send_data.c_str(), send_data.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
        	}	
 	}
@@ -173,7 +174,7 @@ void forward_lsa(string packet)
 		{	
 			if(stoi(token[1]) != i->first)
 			{
-				set_receiver(20058, "node-" +  to_string(i->first));
+				set_receiver(20058, "node-" + to_string(i->first))
 				sendto(router_map.sock, packet.c_str(), packet.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
     	   		cout << "FOrwarding : " << token[1] << " " <<   i->first << endl;
        		}
@@ -193,17 +194,20 @@ public:
 
 void *run_djikstra(void *useless)
 {
+	sleep(5);
 	while(1)
 	{
 		sleep(spfi);
 		//cout << "Running djikstra" << endl;
 	
-		vector<int> dist(n_routers, 10000);
+		vector<int> dist(n_routers, 100000);
 		vector<int> previous(n_routers, -1);
 		dist[id] = 0;
 		priority_queue<pair<int, int>, vector<pair<int, int> >, Prioritize > qu;
+		
 		qu.push(pair<int, int>(id, 0));
 
+		mtx1.lock();
 		cout << "Adjacency Matrix : \n";
 		for(int p = 0; p < n_routers; p++)
 		{
@@ -211,16 +215,20 @@ void *run_djikstra(void *useless)
 				cout << router_map.adj_list[p][q] << " ";
 			cout << endl;
 		}	
+		mtx1.unlock();	
+		
 		while(!qu.empty())
 		{
 			pair<int, int> top = qu.top();
 			qu.pop();
 
 			int u = top.first;
+			if(top.second <= dist[u])
 			for(map<int, int>::iterator it = router_map.adj_list[u].begin(); it != router_map.adj_list[u].end(); it++)	
 			{
-				if((router_map.adj_list[u][it->first] !=0) && (dist[u] + router_map.adj_list[u][it->first] < dist[it->first]))
+				if((router_map.adj_list[u][it->first] != 0) && (dist[u] + router_map.adj_list[u][it->first] < dist[it->first]))
 				{
+					cout << " **** in djikstra *** "<< u << " " << dist[u] << endl;
 					dist[it->first] = dist[u] + router_map.adj_list[u][it->first];	
 					previous[it->first] = u;
 					qu.push(pair<int, int>(it->first, dist[it->first]));
@@ -229,8 +237,12 @@ void *run_djikstra(void *useless)
 
 		}
 
+		mtx2.lock();
 		oup << "------------------\n";
-		oup << "Table for " << id << endl;
+		gettimeofday(&cur_time, NULL);
+		double start_time=cur_time.tv_sec%1000000 ;
+		cout << start_time << endl;
+		oup << "Table for " << id << " at time " << start_time << endl;
 		for(int p = 0; p < n_routers; p++)
 		{
 			oup << p << " | " ;
@@ -242,6 +254,7 @@ void *run_djikstra(void *useless)
 			// print the table here
 		}
 		oup << "------------------\n";
+		mtx2.unlock();
 	}
 }
 
