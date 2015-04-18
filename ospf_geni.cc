@@ -52,7 +52,7 @@ class Router{
 	    struct hostent *host;
 	    unordered_map<int, int> latest_seq;
 	    map<int, map<int, int> > adj_list;
-	    map<int, int> time_mon;
+	    map<int, float> time_mon;
    	
 		Router()
 		{
@@ -63,12 +63,15 @@ class Router{
 		{
 			id = id_this;
 			cur_lsa = 1000;
-			udp_soc = 20000 + id;
+			udp_soc = 20058;
 		}	
 			
 		void setup_socket()
 		{
-			host = (struct hostent *) gethostbyname("localhost");
+			string recv = "node-";
+			recv += to_string(id);
+			
+			host = (struct hostent *) gethostbyname(recv.c_str());
 
 			if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 				perror("Socket");
@@ -122,12 +125,15 @@ void *send_hello(void *useless)
 
 		for(map<int,pair<int, int> >::iterator i = router_map.neigh.begin(); i != router_map.neigh.end(); i++)
 		{	
-			set_receiver(20058, "node-" + to_string(i->first));
+			string recv = "node-";
+			recv += to_string(i->first);
+			set_receiver(20058, recv);
 		//	cout << "SENT : " << send_data << " " << i->first << endl;
-			gettimeofday(&cur_time, NULL);
-			int gen_time=(cur_time.tv_sec+(cur_time.tv_usec/1000000))%10000;
-
-			router_map.time_mon[i->first] = gen_time;
+       		
+       		gettimeofday(&cur_time, NULL);
+			double gen_time=(cur_time.tv_sec*1000+(cur_time.tv_usec/1000))%100000;
+       		router_map.time_mon[i->first] = gen_time;
+       		
        		sendto(router_map.sock, send_data.c_str(), send_data.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
        	}	
          
@@ -158,7 +164,9 @@ void *send_lsa(void *useless)
 
        	for(map<int,pair<int, int> >::iterator i = router_map.neigh.begin(); i != router_map.neigh.end(); i++)
 		{	
-			set_receiver(20058, "node-" + to_string(i->first));
+			string recv = "node-";
+			recv += to_string(i->first);
+			set_receiver(20058, recv);
 			sendto(router_map.sock, send_data.c_str(), send_data.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
        	}	
 	}
@@ -176,7 +184,9 @@ void forward_lsa(string packet)
 		{	
 			if(stoi(token[1]) != i->first)
 			{
-				set_receiver(20058, "node-" + to_string(i->first));
+				string recv = "node-";
+				recv += to_string(i->first);
+				set_receiver(20058, recv);
 				sendto(router_map.sock, packet.c_str(), packet.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
     	   		cout << "FOrwarding : " << token[1] << " " <<   i->first << endl;
        		}
@@ -274,7 +284,7 @@ int find_type(string s)
 
 int main(int argc, char *argv[]) 
 {
-
+	srand(NULL);
 	struct sockaddr_in client_addr;
 	opterr = 0;
 	while ((c = getopt (argc, argv, "i:f:o:h:a:s:")) != -1)
@@ -306,9 +316,9 @@ int main(int argc, char *argv[])
 	while(inp >> a_arg >> b_arg)
 	{
 		if(a_arg == id)
-			router_map.neigh[b_arg] = pair<int,int>(1, 2);
+			router_map.neigh[b_arg] = pair<int,int>(c_arg, d_arg);
 		if(b_arg == id)
-			router_map.neigh[a_arg] = pair<int,int>(1, 2);
+			router_map.neigh[a_arg] = pair<int,int>(c_arg, d_arg);
 	//	cout << "...." <<  a_arg << " " << b_arg << endl;
 	}
 	
@@ -377,16 +387,13 @@ int main(int argc, char *argv[])
     		else if(type == 2)	// HELLO REPLY packet
     		{
     			cout << "UPDATE : " << recv_data << endl;
-				gettimeofday(&cur_time, NULL);
-				int gen_time=(cur_time.tv_sec+(cur_time.tv_usec/1000000))%10000;
+    			gettimeofday(&cur_time, NULL);
+				double gen_time=cur_time.tv_sec*1000+(cur_time.tv_usec/1000)%100000;
 
-				
     			vector<string> token;
     			token = split(recv_data, ' ', token);
-    			
-    				cout  << "...." << gen_time << " " << gen_time - router_map.time_mon[atoi(token[2].c_str())]<< endl;
-    			router_map.adj_list[atoi(token[2].c_str())][atoi(token[1].c_str())] = gen_time - router_map.time_mon[atoi(token[1].c_str())];
-    			router_map.adj_list[atoi(token[1].c_str())][atoi(token[2].c_str())] = gen_time - router_map.time_mon[atoi(token[1].c_str())];
+    			router_map.adj_list[stoi(token[2])][stoi(token[1])] = gen_time - router_map.time_mon[stoi(token[1])];
+    			router_map.adj_list[stoi(token[1])][stoi(token[2])] = gen_time - router_map.time_mon[stoi(token[1])];
     		//	cout << "TOKENS : " << stoi(token[1]) << " " << stoi(token[2]) << " "<< stoi(token[3]) << "\n";
 			
        		}
