@@ -303,12 +303,12 @@ int main(int argc, char *argv[])
 	// Setting up the router information
 	router_map = Router(id);
 	
-	while(inp >> a_arg >> b_arg >> c_arg >> d_arg)
+	while(inp >> a_arg >> b_arg)
 	{
 		if(a_arg == id)
-			router_map.neigh[b_arg] = pair<int,int>(c_arg, d_arg);
+			router_map.neigh[b_arg] = pair<int,int>(1, 2);
 		if(b_arg == id)
-			router_map.neigh[a_arg] = pair<int,int>(c_arg, d_arg);
+			router_map.neigh[a_arg] = pair<int,int>(1, 2);
 	//	cout << "...." <<  a_arg << " " << b_arg << endl;
 	}
 	

@@ -57,7 +57,7 @@ class Router{
 		Router()
 		{
 			id = 0;
-			cur_lasq = 1000;
+			cur_lsa = 1000;
 		}
 		Router(int id_this)
 		{
