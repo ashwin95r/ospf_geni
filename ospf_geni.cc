@@ -45,7 +45,7 @@ mutex mtx2;
 class Router{
 	
 	public:
-		int id, cur_lsa = 1000;
+		int id, cur_lsa;
 		map<int, pair<int, int> > neigh;
 		int udp_soc, sock;
 		struct sockaddr_in server_addr, client_addr;
@@ -57,10 +57,12 @@ class Router{
 		Router()
 		{
 			id = 0;
+			cur_lasq = 1000;
 		}
 		Router(int id_this)
 		{
 			id = id_this;
+			cur_lsa = 1000;
 			udp_soc = 20000 + id;
 		}	
 			
