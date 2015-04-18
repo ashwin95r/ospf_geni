@@ -174,7 +174,7 @@ void forward_lsa(string packet)
 		{	
 			if(stoi(token[1]) != i->first)
 			{
-				set_receiver(20058, "node-" + to_string(i->first))
+				set_receiver(20058, "node-" + to_string(i->first));
 				sendto(router_map.sock, packet.c_str(), packet.size(), 0, (struct sockaddr *) &(server_addr), sizeof (struct sockaddr));	
     	   		cout << "FOrwarding : " << token[1] << " " <<   i->first << endl;
        		}

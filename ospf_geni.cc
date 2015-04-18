@@ -78,7 +78,7 @@ class Router{
 			server_addr.sin_addr = *((struct in_addr *) host->h_addr);
 			bzero(&(server_addr.sin_zero), 8);
 
-			if (bind(sock, (struct sockaddr *) &server_addr, sizeof (struct sockaddr)) == -1) {
+			if (::bind(sock, (struct sockaddr *) &server_addr, sizeof (struct sockaddr)) == -1) {
 				perror("Bind");
 				exit(1);
 			}
